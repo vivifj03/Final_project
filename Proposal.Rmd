@@ -1,0 +1,32 @@
+---
+output: 
+  word_document: 
+    reference_docx: "word_template.docx"
+bibliography: library.bib
+csl: "american-medical-association.csl"
+---
+
+#DIFFERENTIAL GENE EXPRESSION IN POSTMORTEM BRAINS OF SCHIZOPHRENIC PATIENTS
+
+## Viviana Alejandra Rodriguez Romero
+## BIOS 567 Statistical Methods for High-throughput Genomic Data I
+## Final project proposal. November 11, 2017
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Schizophrenia (SCZ) is a mental illness that affects the brain function, particularly patient's thoughts, feelings, and behaviors[@TheNationalInstituteofMentalHealth2016]. The prevalence of SCZ is approximately 1%, however, it is positioned among the first five diseases leading the global disease burden[@Leucht2007]. Heritability is one of the principal risk factors for SCZ, accounting for almost 70% of the SCZ cases[@Hufner2015]. 
+
+Genetic studies have identified differences in brain gene expression between schizophrenic patients and controls in genes involved in ion transport, cell proliferation and adhesion, and inflammatory response [@Harris2008]. However, the magnitude of the expression, as well as the direction of the difference, have shown some variability dependent on the body part and cell type [@Cattane2015].
+
+This study aims to compare the gene expression between humans with and without SCZ using postmortem brain cells from two different regions (dorsolateral prefrontal cortex and cerebellar cortex). The dorsolateral prefrontal cortex (DLPFC) is related to executive, emotional and behavioral functions. On the other hand, cerebellar cortex (CLC) is involved with motor control and some cognitive functions[@MayfieldBrainSpine2016].
+
+Both datasets are publicly available in the NCBI Gene Expression Omnibus (GEO) database. The record for the DLPFC data is GDS3502. This dataset has information on 12 cases and 12 controls. The Affymetrix human genome U133 plus 2.0 array was used to measure the gene expression. Results using this dataset were published for Harris et al. (2008)[@Harris2008]. The second dataset, with cerebellar cells, is the record GDS1917. It has data of 14 schizophrenic patients and 14 controls. The same type of array as in the first dataset was used to get the gene expression, and there is not any publication available using this dataset. 
+
+The initial step will be to compare the gene expression between patients with and without SCZ in each brain region. The second step will be to compare the results between brain regions.
+
+### References
+
+

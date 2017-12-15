@@ -1,0 +1,422 @@
+---
+title: "DIFFERENTIAL GENE EXPRESSION IN POSTMORTEM BRAINS OF SCHIZOPHRENIC PATIENTS"
+subtitle: "Code"
+author: "Viviana Alejandra Rodriguez Romero"
+date: "December 14, 2017"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#if (interactive()) formatR::tidy_app()
+```
+
+### Libraries
+```{r}
+source("http://www.bioconductor.org/biocLite.R")
+# biocLite('clusterProfiler') # Install, if not available
+library(Biobase)
+library(GEOquery)
+library(arrayQualityMetrics)
+library(affy)
+library(sva)
+library(rafalib)
+library(limma)
+library(genefilter)
+library(hgu133plus2.db)
+library(a4Base)
+library(topGO)
+library(clusterProfiler)
+library(DT)
+library(pathview)
+library(KEGGREST)
+```
+ 
+
+### Reading data
+
+```{r}
+# Reading data of GDS3502. Raw data is in file GSE12679.
+getGEOSuppFiles("GSE12679", makeDirectory = TRUE, baseDir = getwd())
+untar("GSE12679/GSE12679_RAW.tar", exdir = "GSE12679/CEL")
+setwd("./GSE12679b/CEL")
+affy3502 <- ReadAffy()
+```
+
+
+```{r}
+# Reading data of GDS1917. Raw data is in file GSE4036.
+getGEOSuppFiles("GSE4036", makeDirectory = TRUE, baseDir = getwd())
+untar("GSE4036/GSE4036_RAW.tar", exdir = "GSE4036/CEL")
+setwd("./GSE4036/CEL")
+affy1917 <- ReadAffy()
+```
+
+
+### Quality control
+```{r}
+# Quality control for GDS3502
+arrayQualityMetrics(affy3502, outdir = "eset3502.qc", force = TRUE)
+affy3502.b <- affy3502[, -2]
+
+# Quality control for GDS1917
+arrayQualityMetrics(affy1917, outdir = "eset1917.qc", force = TRUE)
+```
+
+### Normalization
+```{r}
+# First, normalization and summarization of each dataset will be done
+# separately.  Subsequently, the datasets will be merged, and a new
+# normalization process will be done to the complete data
+
+# Normalization for dataset 3502
+jpeg("./Figures/Fig1.jpg")
+boxplot(affy3502.b)  #Fig1
+dev.off()
+
+# titulo vs pseudo-median reference chip
+jpeg("./Figures/Fig2.jpg")
+par(mfrow = c(6, 5), mar = c(0, 0, 0, 0))
+MAplot(affy3502.b, cex = 0.1)  #Fig2
+dev.off()
+
+e3502 <- rma(affy3502.b, normalize = TRUE, background = TRUE)
+
+jpeg("./Figures/Fig3.jpg")
+boxplot(e3502)  #Fig3
+dev.off()
+
+jpeg("./Figures/Fig4.jpg")
+par(mfrow = c(6, 5), mar = c(0, 0, 0, 0))
+MAplot(e3502, cex = 0.1)  #Fig4
+dev.off()
+
+# Normalization for dataset 1917
+jpeg("./Figures/Fig5.jpg")
+boxplot(affy1917)  #Fig5
+dev.off()
+
+jpeg("./Figures/Fig6.jpg")
+par(mfrow = c(7, 4), mar = c(0, 0, 0, 0))
+MAplot(affy1917, cex = 0.1)  #Fig6
+dev.off()
+
+e1917 <- rma(affy1917, normalize = TRUE, background = TRUE)
+
+jpeg("./Figures/Fig7.jpg")
+boxplot(e1917)  #Fig7
+dev.off()
+
+jpeg("./Figures/Fig8.jpg")
+par(mfrow = c(7, 4), mar = c(0, 0, 0, 0))
+MAplot(e1917, cex = 0.1)  #Fig8
+dev.off()
+``` 
+
+#Phenodata
+```{r}
+# Second dataset:GDS1917
+GDS1917 <- getGEO("GDS1917", destdir = ".")
+eset1917 <- GDS2eSet(GDS1917)
+p1917 <- pData(eset1917)
+f1917 <- fData(eset1917)
+p1917$brain <- "cerebellar"
+rownames(p1917) <- paste(p1917$sample, ".cel.gz", sep = "")
+p1917 <- p1917[order(rownames(p1917)), ]
+fData(e1917) <- f1917
+pData(e1917) <- p1917
+rm(GDS1917, eset1917, p1917)
+
+# First dataset:GDS3502
+GDS3502 <- getGEO("GDS3502", destdir = ".")
+eset3502 <- GDS2eSet(GDS3502)
+p3502 <- pData(eset3502)
+p3502$brain <- "DLPFC"
+rownames(p3502) <- paste(p3502$sample, ".CEL.gz", sep = "")
+# This dataset has more data that we need (patients with other clinical
+# conditions and other variables) Then, this information is deleted
+# first.
+p3502 <- p3502[p3502$disease.state == "schizophrenia" | p3502$disease.state == 
+    "control", c("sample", "disease.state", "description")]
+
+p3502$brain <- "DLPFC"
+p3502 <- p3502[order(rownames(p3502)), ]
+p3502 <- p3502[-2, ]  #Didn't pass quality control
+fData(e3502) <- f1917
+pData(e3502) <- p3502
+rm(GDS3502, eset3502, p3502)
+```
+
+
+### Merging datasets
+```{r}
+edata <- cbind(exprs(e3502), exprs(e1917))
+pdata <- rbind(pData(e3502), pData(e1917))
+all.equal(rownames(pdata), colnames(edata))
+eset <- ExpressionSet(assayData = edata, phenoData = new("AnnotatedDataFrame", 
+    data = pdata))
+fData(eset) <- f1917
+rm(affy3502, edata, pdata, f1917)
+```
+
+### Normalization for complete dataset
+```{r}
+jpeg("./Figures/Fig9.jpg")
+boxplot(eset)  #Fig9
+dev.off()
+
+eset.n <- normalize(eset)
+
+jpeg("./Figures/Fig10.jpg")
+boxplot(eset.n)  #Fig10
+dev.off()
+
+jpeg("./Figures/Fig11.jpg")
+par(mfrow = c(11, 5), mar = c(0, 0, 0, 0))
+MAplot(eset.n, cex = 0.1)  #Fig11
+dev.off()
+``` 
+
+### Batch effects
+```{r}
+# Study as bach effect
+pheno <- droplevels(pData(eset.n))
+edata <- exprs(eset.n)
+batch <- pheno$brain
+modcombat <- model.matrix(~1, data = pheno)
+modsqz <- model.matrix(~disease.state, data = pheno)
+combat_edata <- ComBat(dat = edata, batch = batch, mod = modcombat, par.prior = TRUE, 
+    prior.plots = FALSE)
+combat_fit <- lm.fit(modsqz, t(combat_edata))
+jpeg("./Figures/Fig12.jpg")
+hist(combat_fit$coefficients[2, ], col = 2, breaks = 100, main = )
+dev.off()
+
+# Unknown bach effect
+modcombat <- model.matrix(~1 + brain, data = pheno)
+modsqz <- model.matrix(~disease.state + brain, data = pheno)
+n.sv <- num.sv(edata, modsqz)
+sva1 <- sva(edata, modsqz, modcombat, n.sv = n.sv)
+
+
+summary(lm(sva1$sv ~ pheno$disease.state))
+
+jpeg("./Figures/Fig13.jpg")
+boxplot(sva1$sv[, 2] ~ pheno$disease.state)
+points(sva1$sv[, 2] ~ jitter(as.numeric(pheno$disease.state)), col = c(1, 
+    2))
+dev.off()
+``` 
+
+### PCA
+```{r}
+study <- as.fumeric(pheno$brain)
+x <- t(edata)
+pc <- prcomp(x)
+
+x <- t(combat_edata)
+pcr <- prcomp(x)
+
+jpeg("./Figures/Fig14.jpg")
+par(mfrow = c(1, 2))
+plot(pc$x[, 1], pc$x[, 2], col = study, main = "a. before bach removal", 
+    xlab = "PC1", ylab = "PC2")
+plot(pcr$x[, 1], pcr$x[, 2], col = study, main = "b. after bach removal", 
+    xlab = "PC1", ylab = "PC2")
+dev.off()
+```
+
+### Hierarchical clustering methods
+```{r}
+# Identifying 10% of more variable genes
+var <- apply(edata, 1, sd)
+r <- quantile(var, 0.9)
+list.var <- which(var > r)
+
+edata.10 <- edata[list.var, ]
+combat_edata.10 <- combat_edata[list.var, ]
+
+# average clustering
+hclus.bef.ave <- hclust(dist(edata.10), method = "average")
+hclus.aft.ave <- hclust(dist(combat_edata.10), method = "average")
+
+jpeg("./Figures/Fig15.jpg")
+par(mfrow = c(2, 1), mar = c(1, 4, 2, 1))
+plot(hclus.bef.ave, labels = FALSE, hang = -1, main = "a. before batch effect")
+plot(hclus.aft.ave, labels = FALSE, hang = -1, main = "b. after batch effect")
+dev.off()
+
+# complete
+hclus.bef.com <- hclust(dist(edata.10), method = "complete")
+hclus.aft.com <- hclust(dist(combat_edata.10), method = "complete")
+
+jpeg("./Figures/Fig16.jpg")
+par(mfrow = c(2, 1), mar = c(1, 4, 2, 1))
+plot(hclus.bef.com, labels = FALSE, hang = -1, main = "a. before batch effect")
+plot(hclus.aft.com, labels = FALSE, hang = -1, main = "b. after batch effect")
+dev.off()
+```
+
+### Filtering
+```{r}
+annotation(eset.n) <- annotation(e3502)
+
+eset.f <- nsFilter(eset.n, require.entrez = TRUE, require.GOBP = TRUE, 
+    require.GOCC = TRUE, require.GOMF = TRUE, require.CytoBand = FALSE, 
+    remove.dupEntrez = TRUE, var.func = IQR, var.cutoff = 0.5, var.filter = TRUE, 
+    filterByQuantile = TRUE, feature.exclude = "^AFFX")
+
+eset.f$filter.log
+eset.ft <- eset.f$eset  # The new ExpressionSet
+```
+
+
+### Differential expression
+```{r}
+pheno.f <- pData(eset.ft)
+edata.f <- exprs(eset.ft)
+TS <- paste(pheno.f$disease.state, pheno.f$brain, sep = ".")
+TS <- factor(TS)
+design <- model.matrix(~0 + TS)
+colnames(design) <- levels(TS)
+fit <- lmFit(eset.ft, design)
+
+cont.matrix <- makeContrasts(cerebellar.SvsC = schizophrenia.cerebellar - 
+    control.cerebellar, DLPFC.SvsC = schizophrenia.DLPFC - control.DLPFC, 
+    Diff = (schizophrenia.DLPFC - control.DLPFC) - (schizophrenia.cerebellar - 
+        control.cerebellar), levels = design)
+fit2 <- contrasts.fit(fit, cont.matrix)
+fit2 <- eBayes(fit2)
+tt1 <- topTable(fit2, n = Inf, coef = "cerebellar.SvsC", adjust.method = "fdr", 
+    p.value = 0.05)
+tt2 <- topTable(fit2, n = Inf, coef = "DLPFC.SvsC", adjust.method = "fdr", 
+    p.value = 0.05)
+tt3 <- topTable(fit2, n = Inf, coef = "Diff", adjust.method = "fdr", p.value = 0.05)
+
+# results <- decideTests(fit2) vennDiagram(results)
+
+pData(eset.ft)$group <- paste(pData(eset.ft)$brain, pData(eset.ft)$disease.state, 
+    sep = ".")
+pData(eset.ft)$group <- factor(pData(eset.ft)$group, labels = c("CRB.cntr", 
+    "CRB.scz", "DLPFC.cntr", "DLPFC.scz"))
+
+
+jpeg("./Figures/Fig17.jpg")
+par(mfrow = c(5, 2), mar = c(2, 3, 1.8, 0.5))
+boxPlot(probesetId = "205568_at", object = eset.ft, groups = "group", addLegend = FALSE, 
+    xaxt = "n")
+boxPlot(probesetId = "242100_at", object = eset.ft, groups = "group", addLegend = FALSE, 
+    xaxt = "n")
+boxPlot(probesetId = "203497_at", object = eset.ft, groups = "group", addLegend = FALSE, 
+    xaxt = "n")
+boxPlot(probesetId = "208726_s_at", object = eset.ft, groups = "group", 
+    addLegend = FALSE, xaxt = "n")
+boxPlot(probesetId = "211963_s_at", object = eset.ft, groups = "group", 
+    addLegend = FALSE, xaxt = "n")
+boxPlot(probesetId = "218576_s_at", object = eset.ft, groups = "group", 
+    addLegend = FALSE, xaxt = "n")
+boxPlot(probesetId = "209959_at", object = eset.ft, groups = "group", addLegend = FALSE, 
+    xaxt = "n")
+boxPlot(probesetId = "214812_s_at", object = eset.ft, groups = "group", 
+    addLegend = FALSE, xaxt = "n")
+boxPlot(probesetId = "211576_s_at", object = eset.ft, groups = "group", 
+    addLegend = FALSE)
+boxPlot(probesetId = "205901_at", object = eset.ft, groups = "group", addLegend = FALSE)
+dev.off()
+```
+
+### Functional enrichment analysis
+
+```{r}
+# GSEA by gene By chromosome
+tt <- topTable(fit2, n = Inf, coef = "DLPFC.SvsC", adjust.method = "fdr")
+tt$sig <- ifelse(tt$adj.P.Val < 0.05, 1, 0)
+tt$chromosome <- sub("\\,.*", "", tt$Chromosome.annotation)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 10///Chromosome 10", 
+    "Chromosome 10", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 11///Chromosome 11", 
+    "Chromosome 11", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 12///Chromosome 1", 
+    "Chromosome 12", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 16///Chromosome 16", 
+    "Chromosome 16", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 17///Chromosome 17", 
+    "Chromosome 17", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 2///Chromosome 2", 
+    "Chromosome 2", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 3///Chromosome 3", 
+    "Chromosome 3", tt$chromosome)
+tt$chromosome <- ifelse(tt$chromosome == "Chromosome 7///Chromosome 7", 
+    "Chromosome 7", tt$chromosome)
+
+Fisher.test.2 <- function(z) {
+    df <- tt
+    df$chr <- ifelse(sapply(df$chromosome, function(s) grepl(z, s)) == 
+        TRUE, 1, ifelse(is.na(df$chromosome) == TRUE, NA, 0))
+    a <- t(table(df$chr, df$sig))
+    p.f <- fisher.test(a)$p.value
+    return(p.f)
+}
+
+chr <- c(seq(1:22), "X", "Y")
+chr <- paste("Chromosome", chr)
+chr.pvalue <- sapply(chr, Fisher.test.2)
+chromosomes <- as.data.frame(chr)
+chromosomes$Fisher <- chr.pvalue
+chromosomes$Fisher.BH <- p.adjust(chromosomes$Fisher, method = "BH")
+chromosomes[chromosomes$Fisher.BH < 0.05, 1]
+```
+```{r}
+# Enrichment analysis for Gene Ontology (GO)
+terms
+sel.fn <- function(p.vals) { p.vals < 0.05 } # Returns a subset of most significant probes
+affyLib <- paste(annotation(eset.ft), "db", sep=".")
+p.values <- tt$adj.P.Val
+names(p.values) <- rownames(tt)
+
+GOdata <- new("topGOdata",
+               ontology = "BP", allGenes = p.values, geneSel = sel.fn,
+               nodeSize = 10, # search GO terms with >= 10 genes
+               annot = annFUN.db, affyLib = "hgu133plus2.db")
+ 
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+
+jpeg('./Figures/Fig18.jpg')
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+```
+
+```{r}
+# Kegg
+geneList <- p.values
+probe2entrez <- as.list(hgu133plus2ENTREZID)
+names(geneList) <- unlist(probe2entrez[names(p.values)])
+geneList <- sort(geneList, decreasing = TRUE)
+kk2 <- gseKEGG(geneList = geneList, organism = "hsa", nPerm = 1000, minGSSize = 10, 
+    pvalueCutoff = 0.8, verbose = FALSE)
+data(korg)
+organism <- "Homo sapiens"
+matches <- unlist(sapply(1:ncol(korg), function(i) {
+    agrep(organism, korg[, i])
+}))
+kegg.code <- korg[matches, 1, drop = F]
+pathways <- keggList("pathway", kegg.code)
+map <- gsub("path:", "", names(pathways)[2])  # remove 'path:'
+
+gene.data <- as.data.frame(tt[, "logFC"])
+row.names(gene.data) <- tt$ID
+colnames(gene.data) <- "logFG"
+
+pv.out <- pathview(gene.data = gene.data, pathway.id = map, species = "hsa", 
+    out.suffix = map)
+plot.name <- paste(map, map, "png", sep = ".")
+```  
+
+
+```{r}
+save.image("final_data.RData")
+```

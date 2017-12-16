@@ -393,28 +393,28 @@ dev.off()
 
 ```{r}
 # Kegg
-geneList <- p.values
-probe2entrez <- as.list(hgu133plus2ENTREZID)
-names(geneList) <- unlist(probe2entrez[names(p.values)])
-geneList <- sort(geneList, decreasing = TRUE)
-kk2 <- gseKEGG(geneList = geneList, organism = "hsa", nPerm = 1000, minGSSize = 10, 
-    pvalueCutoff = 0.8, verbose = FALSE)
-data(korg)
-organism <- "Homo sapiens"
-matches <- unlist(sapply(1:ncol(korg), function(i) {
-    agrep(organism, korg[, i])
-}))
-kegg.code <- korg[matches, 1, drop = F]
-pathways <- keggList("pathway", kegg.code)
-map <- gsub("path:", "", names(pathways)[2])  # remove 'path:'
+#geneList <- p.values
+#probe2entrez <- as.list(hgu133plus2ENTREZID)
+#names(geneList) <- unlist(probe2entrez[names(p.values)])
+#geneList <- sort(geneList, decreasing = TRUE)
+#kk2 <- gseKEGG(geneList = geneList, organism = "hsa", nPerm = 1000, minGSSize = 10, 
+#    pvalueCutoff = 0.8, verbose = FALSE)
+#data(korg)
+#organism <- "Homo sapiens"
+#matches <- unlist(sapply(1:ncol(korg), function(i) {
+#    agrep(organism, korg[, i])
+#}))
+#kegg.code <- korg[matches, 1, drop = F]
+#pathways <- keggList("pathway", kegg.code)
+#map <- gsub("path:", "", names(pathways)[2])  # remove 'path:'
 
-gene.data <- as.data.frame(tt[, "logFC"])
-row.names(gene.data) <- tt$ID
-colnames(gene.data) <- "logFG"
+#gene.data <- as.data.frame(tt[, "logFC"])
+#row.names(gene.data) <- tt$ID
+#colnames(gene.data) <- "logFG"
 
-pv.out <- pathview(gene.data = gene.data, pathway.id = map, species = "hsa", 
-    out.suffix = map)
-plot.name <- paste(map, map, "png", sep = ".")
+#pv.out <- pathview(gene.data = gene.data, pathway.id = map, species = "hsa", 
+#    out.suffix = map)
+#plot.name <- paste(map, map, "png", sep = ".")
 ```  
 
 

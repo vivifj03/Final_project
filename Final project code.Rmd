@@ -1,10 +1,11 @@
 ---
 title: "DIFFERENTIAL GENE EXPRESSION IN POSTMORTEM BRAINS OF SCHIZOPHRENIC PATIENTS"
-subtitle: "Code"
 author: "Viviana Alejandra Rodriguez Romero"
 date: "December 14, 2017"
 output:
+  word_document: default
   html_document: default
+subtitle: Code
 ---
 
 ```{r setup, include=FALSE}
@@ -202,7 +203,6 @@ modsqz <- model.matrix(~disease.state + brain, data = pheno)
 n.sv <- num.sv(edata, modsqz)
 sva1 <- sva(edata, modsqz, modcombat, n.sv = n.sv)
 
-
 summary(lm(sva1$sv ~ pheno$disease.state))
 
 jpeg("./Figures/Fig13.jpg")
@@ -224,7 +224,7 @@ pcr <- prcomp(x)
 jpeg("./Figures/Fig14.jpg")
 par(mfrow = c(1, 2))
 plot(pc$x[, 1], pc$x[, 2], col = study, main = "a. before bach removal", 
-    xlab = "PC1", ylab = "PC2")
+    xlab = "PC1", ylab = "PC2", label=TRUE)
 plot(pcr$x[, 1], pcr$x[, 2], col = study, main = "b. after bach removal", 
     xlab = "PC1", ylab = "PC2")
 dev.off()
@@ -240,7 +240,7 @@ list.var <- which(var > r)
 edata.10 <- edata[list.var, ]
 combat_edata.10 <- combat_edata[list.var, ]
 
-# average clustering
+# average linkage
 hclus.bef.ave <- hclust(dist(edata.10), method = "average")
 hclus.aft.ave <- hclust(dist(combat_edata.10), method = "average")
 
@@ -250,7 +250,7 @@ plot(hclus.bef.ave, labels = FALSE, hang = -1, main = "a. before batch effect")
 plot(hclus.aft.ave, labels = FALSE, hang = -1, main = "b. after batch effect")
 dev.off()
 
-# complete
+# complete linkage
 hclus.bef.com <- hclust(dist(edata.10), method = "complete")
 hclus.aft.com <- hclust(dist(combat_edata.10), method = "complete")
 
@@ -291,11 +291,11 @@ cont.matrix <- makeContrasts(cerebellar.SvsC = schizophrenia.cerebellar -
         control.cerebellar), levels = design)
 fit2 <- contrasts.fit(fit, cont.matrix)
 fit2 <- eBayes(fit2)
-tt1 <- topTable(fit2, n = Inf, coef = "cerebellar.SvsC", adjust.method = "fdr", 
+tt1 <- topTable(fit2, n = Inf, coef = "cerebellar.SvsC", adjust.method = "BH", 
     p.value = 0.05)
-tt2 <- topTable(fit2, n = Inf, coef = "DLPFC.SvsC", adjust.method = "fdr", 
+tt2 <- topTable(fit2, n = Inf, coef = "DLPFC.SvsC", adjust.method = "BH", 
     p.value = 0.05)
-tt3 <- topTable(fit2, n = Inf, coef = "Diff", adjust.method = "fdr", p.value = 0.05)
+tt3 <- topTable(fit2, n = Inf, coef = "Diff", adjust.method = "BH", p.value = 0.05)
 
 # results <- decideTests(fit2) vennDiagram(results)
 
@@ -332,7 +332,7 @@ dev.off()
 ### Functional enrichment analysis
 
 ```{r}
-# GSEA by gene By chromosome
+# GSEA By chromosome
 tt <- topTable(fit2, n = Inf, coef = "DLPFC.SvsC", adjust.method = "fdr")
 tt$sig <- ifelse(tt$adj.P.Val < 0.05, 1, 0)
 tt$chromosome <- sub("\\,.*", "", tt$Chromosome.annotation)
@@ -370,6 +370,7 @@ chromosomes$Fisher <- chr.pvalue
 chromosomes$Fisher.BH <- p.adjust(chromosomes$Fisher, method = "BH")
 chromosomes[chromosomes$Fisher.BH < 0.05, 1]
 ```
+
 ```{r}
 # Enrichment analysis for Gene Ontology (GO)
 terms
